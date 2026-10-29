@@ -1,4 +1,4 @@
-const fs=require('fs'),vm=require('vm');const elements={};const context=new Proxy({},{get:()=>()=>{}});const sandbox={document:{getElementById(id){return elements[id]??={textContent:'',innerHTML:'',classList:{add(){},remove(){}},getContext:()=>context,addEventListener(){}}}},Image:class{},localStorage:{getItem:()=>null,setItem(){}},window:{addEventListener(){}},performance:{now:()=>0},requestAnimationFrame(){},Math,Set};vm.createContext(sandbox);vm.runInContext(fs.readFileSync('game.js','utf8'),sandbox);vm.runInContext(`
+const fs=require('fs'),vm=require('vm');const elements={};const context=new Proxy({},{get:()=>()=>{}});const sandbox={document:{getElementById(id){return elements[id]??={textContent:'',innerHTML:'',classList:{add(){},remove(){}},getContext:()=>context,getBoundingClientRect:()=>({left:0,top:0,width:960,height:640}),setPointerCapture(){},addEventListener(name,handler){(this.handlers??={})[name]=handler}}}},Image:class{},localStorage:{getItem:()=>null,setItem(){}},window:{addEventListener(){}},performance:{now:()=>0},requestAnimationFrame(){},Math,Set};vm.createContext(sandbox);vm.runInContext(fs.readFileSync('game.js','utf8'),sandbox);vm.runInContext(`
 function check(ok,label){if(!ok)throw Error(label)}
 reset();check(chains.length===1&&chains[0].segments.length===1,'single starting bug');
 blocks=[];links=[];let c=chains[0];
@@ -26,7 +26,7 @@ links=[{a:va,b:vb,vertical:true,life:2}];check(!blocksShot({x:300,y:180,previous
 reset();blocks=[];keys.add(' ');update(.001);check(bullets[0].x===459,'left horn');shot=0;update(.001);check(bullets[1].x===501,'right horn');keys.clear();
 chains=[{segments:[segment(480,300)],dir:1,clock:-1,growth:0}];let bug=chains[0].segments[0];bug.phased=true;bug.phaseTimer=10;bullets=[{x:480,y:310}];update(.01);check(score===0&&bullets.length===1,'phased bug ignores shot');
 bug.phased=false;bullets=[{x:480,y:310}];update(.01);check(score===20&&wave===2,'solid bug hit and next wave');check(chains.length===2&&chains.every(c=>c.segments.length===1)&&wallTouches===0,'level two starts two single-segment chains');
-chains[0].segments[0].phaseTimer=0;update(.01);check(chains[0].segments[0].phased,'phase begins');chains[0].segments[0].phaseTimer=0;update(.01);check(!chains[0].segments[0].phased,'phase ends');
+update(2);chains[0].segments[0].phaseTimer=0;update(.01);check(chains[0].segments[0].phased,'phase begins');chains[0].segments[0].phaseTimer=0;update(.01);check(!chains[0].segments[0].phased,'phase ends');
 // Losing a life must not teleport a grown chain back to the spawn row.
 chains=[{segments:[segment(480,540),segment(456,540),segment(432,540)],dir:1,clock:0,growth:4}];
 let beforeDamage=chains[0].segments.map(s=>({x:s.x,y:s.y}));wallTouches=5;invincible=0;hit();
@@ -112,8 +112,8 @@ let reacting=chains[0],frozen=reacting.segments.map(s=>s.x+','+s.y).join(';');
 check(reacting.reaction&&reacting.growth===0&&score===60,'root triggers whole event once');
 update(.13);check(reacting.segments.map(s=>s.x+','+s.y).join(';')===frozen&&reacting.reaction.removed===0,'reaction freezes before disappearance');
 let reactionScore=score;detonate(400,300);check(score===reactionScore,'blast cannot score reacting event twice');
-update(.36);check(reacting.reaction.removed===1,'front disappears first after red propagation');
-update(.3);check(wave===2,'next level waits for reaction to finish');
+update(.24);check(reacting.reaction.removed===1,'front disappears first after red propagation');
+update(.4);check(wave===2,'next level waits for reaction to finish');
 // A body hit creates independent roots and independent wall counters.
 reset();blocks=[];links=[];
 chains=[{segments:[segment(400,300),segment(376,300),segment(352,300),segment(328,300),segment(304,300)],dir:1,clock:-1,growth:2,wallCounter:{touches:3}}];
@@ -135,6 +135,28 @@ check(chains[0].root===carriedRoot,'surviving root follows its split');
 let mobile=chains[0];mobile.root=mobile.segments[1];mobile.rootTimer=3;bullets=[{x:mobile.root.x,y:mobile.root.y+10}];update(.001);check(mobile.reaction,'body root shot triggers cascade');
 reset();blocks=[];links=[];chains=[{segments:[segment(200,300),segment(400,300),segment(600,300)],dir:1,clock:-1,growth:0}];
 chains[0].root=chains[0].segments[1];chains[0].rootTimer=3;detonate(400,300);check(chains[0].reaction,'missile targets moving root rather than head');draw();reset();
+// A central root propagates red and disappearance symmetrically.
+reset();blocks=[];links=[];
+let outward={segments:Array.from({length:5},(_,i)=>segment(400-i*24,300)),dir:1,clock:0,growth:3};outward.root=outward.segments[2];chains=[outward];terminateRoot(outward);
+check(outward.reaction.origin===2,'reaction anchors at actual root');
+updateReaction(outward,.13);check(outward.reaction.elapsed>=.12&&outward.reaction.elapsed<.24&&outward.reaction.gone.size===0,'red reaches both adjacent chevrons before outer pair');
+updateReaction(outward,.24);check(outward.reaction.gone.has(2)&&outward.reaction.gone.size===1,'root disappears first');
+updateReaction(outward,.12);check(outward.reaction.gone.has(1)&&outward.reaction.gone.has(3)&&outward.reaction.gone.size===3,'disappearance spreads both ways');
+updateReaction(outward,.12);check(outward.segments.length===0,'outer pair clears last');
+reset();blocks=[];links=[];chains=[];update(.001);
+check(levelPause===2&&wave===2,'new level gets two second pause');
+const pausedTick=tick,pausedX=chains[0].segments[0].x;keys.add(' ');update(1.99);fireMissile();
+check(tick===pausedTick&&chains[0].segments[0].x===pausedX&&bullets.length===0&&missiles.length===0,'pause freezes simulation and weapons');
+update(.02);check(levelPause===0,'level pause ends after two seconds');update(.001);check(bullets.length===1,'held firing resumes after pause');keys.clear();
+// The missile pointer never releases or takes over the movement pointer.
+reset();const handlers=canvas.handlers;
+handlers.pointerdown({pointerId:1,clientX:500,clientY:580});
+$('missile').handlers.pointerdown({pointerId:2,preventDefault(){},stopPropagation(){}});
+check(pointer&&movementPointer===1&&missiles.length===1,'second finger fires missile while holding fire');
+handlers.pointermove({pointerId:1,clientX:600,clientY:570});check(player.x===600&&pointer,'first finger keeps moving and firing');
+handlers.pointerup({pointerId:2});check(pointer,'missile finger release cannot stop fire');
+$('missile').onclick({detail:1});check(missiles.length===1,'pointer click does not launch twice');
+handlers.pointerup({pointerId:1});check(!pointer&&movementPointer===null,'movement finger release stops firing');reset();
 const realGet=document.getElementById;document.getElementById=id=>id==='rade'?null:realGet(id);$('start').onclick();advanceIntro(5);check(state==='playing','start survives older HTML without RADE status');document.getElementById=realGet;
 pause();check(state==='paused','pause');pause();check(state==='playing','resume');
 `,sandbox);console.log('PASS: starting bug; +1/+2/+3 wall growth; block exclusion; alternating horns; phased immunity and recovery; solid hits; increasing level chain count and alternating spawns; damage never respawns a long chain; restart; bot Z and hop; glass bands; third-kill 30-second RADE activation, side fire and expiry; pause/resume');
