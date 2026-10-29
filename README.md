@@ -1,6 +1,6 @@
 # Drift Destroyer
 
-Pilot **OBI iRover**, an astronaut dog, and stop growing software drift in this browser arcade game.
+Pilot **OBI iRover**, an astronaut dog, and stop growing dark debt in this browser arcade game.
 
 [Play Drift Destroyer](https://k-oldbulls.github.io/drift-destroyer/)
 
@@ -15,9 +15,9 @@ Pilot **OBI iRover**, an astronaut dog, and stop growing software drift in this 
 
 ## Gameplay
 
-Every level adds another single-segment drift element. Spawn positions alternate sides and step down one segment height. Only lead-bug side-wall arrivals grow a drift element: +1, +2, +3 and so on. Each original drift element has its own counter; its split pieces share that counter. Followers, architecture turns, and ship respawns do not count.
+Every level adds another single-segment dark-debt element. Spawn positions alternate sides and step down one segment height. Only lead-bug side-wall arrivals grow a dark-debt element: +1, +2, +3 and so on. Each original dark-debt element has its own counter; its split pieces share that counter. Followers, defect turns, and ship respawns do not count.
 
-Intermittent bugs temporarily become translucent and immune to shots and missiles. Orange microservice blocks turn blue while connected. Connections last at most three seconds: vertical lines turn drift bugs, and horizontal lines block vertical shots.
+Dark-debt segments are light-grey chevrons that point along their own movement. Intermittent segments fade smoothly toward black and become translucent and immune to shots and missiles. Orange defect blocks turn blue while connected. Connections last at most three seconds: vertical lines turn dark-debt segments, and horizontal lines block vertical shots.
 
 The red bot alternates Z and mirrored-Z patrols in successive quarters of the flight zone, starting from either side. Three bot kills enable **RADE** for thirty seconds, adding left/right lasers alongside normal vertical firing. Missile kills and unprotected ship–bot crashes count. A crash also costs one hull point.
 
