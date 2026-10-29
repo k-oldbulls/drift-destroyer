@@ -47,6 +47,8 @@ function updateLinks(dt){
 }
 function crossesVertical(x,nx,y){return links.some(l=>l.vertical&&Math.min(x,nx)-10<=l.a.x&&Math.max(x,nx)+10>=l.a.x&&y>=Math.min(l.a.y,l.b.y)&&y<=Math.max(l.a.y,l.b.y))}
 function blocksShot(b){if(b.vx)return false;return links.some(l=>!l.vertical&&b.x>=Math.min(l.a.x,l.b.x)&&b.x<=Math.max(l.a.x,l.b.x)&&b.y-8<=l.a.y&&b.previousY+8>=l.a.y)}
+// Each wall encounter adds 4% of the level baseline speed, up to a playable cap.
+function chainStepTime(c){return Math.max(.035,Math.max(.055,.15-wave*.009)/(1+.04*(c.wallCounter?.touches??0)))}
 function stepChain(c){
  if(c.reaction||!c.segments.length)return;
  c.wallCounter??={touches:0};
@@ -206,8 +208,8 @@ for(const c of chains){
  if(c.reaction){updateReaction(c,dt);continue}
  updateRoot(c,dt);
  for(const s of c.segments){s.visibility??=1;const target=s.phased?0:1;s.visibility+=Math.max(-dt*4,Math.min(dt*4,target-s.visibility));s.phaseTimer-=dt;if(s.phaseTimer<=0){s.phased=!s.phased;s.phaseTimer=s.phased?rand(.8,2):rand(2,5)}}
- c.clock+=dt;const speed=Math.max(.055,.15-wave*.009);
- while(c.clock>=speed){c.clock-=speed;stepChain(c)}
+ c.clock+=dt;
+ while(c.clock>=chainStepTime(c)){c.clock-=chainStepTime(c);stepChain(c)}
 }
 updateMissiles(dt);for(const blast of blasts)blast.life-=dt;blasts=blasts.filter(b=>b.life>0);
 for(const b of bullets){if(b.y<0)continue;let m=blocks.find(m=>Math.abs(m.x-b.x)<16&&Math.abs(m.y-b.y)<15);if(m){b.y=-100;m.hp--;burst(m.x,m.y,'#ff9c52',3);if(!m.hp){blocks.splice(blocks.indexOf(m),1);links=links.filter(l=>l.a!==m&&l.b!==m);addScore(5)}continue}for(const c of chains){if(c.reaction)continue;const i=c.segments.findIndex(s=>!s.phased&&Math.abs(s.x-b.x)<17&&Math.abs(s.y-b.y)<17);if(i>=0){if(c.segments[i]===rootOf(c)){terminateRoot(c);b.y=-100;tone(120,.18);break}const s=c.segments[i];burst(s.x,s.y,'#d8d8d8');if(!blocks.some(m=>m.x===s.x&&m.y===s.y))blocks.push({x:s.x,y:s.y,hp:3});const tail=c.segments.splice(i);tail.shift();if(tail.length){chains.push(splitEvent(c,tail,c.growth,-c.dir));c.growth=0;c.wallCounter={touches:c.wallCounter?.touches??0};}rootOf(c);b.y=-100;addScore(20);tone(200,.08);break}}if(bot&&(b.vx?Math.abs(b.y-bot.y)<27&&bot.x>=Math.min(b.previousX,b.x)-27&&bot.x<=Math.max(b.previousX,b.x)+27:Math.hypot(b.x-bot.x,b.y-bot.y)<27)){registerBotKill();burst(bot.x,bot.y,'#ff5945',25);bot=null;b.y=-100;addScore(100);tone(400,.15)}}

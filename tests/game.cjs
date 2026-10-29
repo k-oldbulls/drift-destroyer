@@ -157,6 +157,20 @@ handlers.pointermove({pointerId:1,clientX:600,clientY:570});check(player.x===600
 handlers.pointerup({pointerId:2});check(pointer,'missile finger release cannot stop fire');
 $('missile').onclick({detail:1});check(missiles.length===1,'pointer click does not launch twice');
 handlers.pointerup({pointerId:1});check(!pointer&&movementPointer===null,'movement finger release stops firing');reset();
+// Only each event's own wall-growth contacts accelerate it.
+reset();blocks=[];links=[];let speeding=chains[0],baseStep=chainStepTime(speeding);
+while(speeding.wallCounter.touches<1)stepChain(speeding);
+check(Math.abs(baseStep/chainStepTime(speeding)-1.04)<.000001,'first wall adds four percent baseline speed');
+let firstSpeed=chainStepTime(speeding);for(let i=0;i<5;i++)stepChain(speeding);
+check(chainStepTime(speeding)===firstSpeed,'followers do not add speed');
+while(speeding.wallCounter.touches<2)stepChain(speeding);
+check(Math.abs(baseStep/chainStepTime(speeding)-1.08)<.000001,'second wall adds another four percent');
+let beforeObstacle=chainStepTime(speeding);speeding.segments[0].x=300;speeding.dir=1;blocks=[{x:324,y:speeding.segments[0].y,hp:3}];stepChain(speeding);
+check(chainStepTime(speeding)===beforeObstacle,'defect bounce does not accelerate');
+let independent=splitEvent(speeding,[segment(200,300)]);check(chainStepTime(independent)===chainStepTime(speeding),'split inherits earned speed');independent.wallCounter.touches++;
+check(chainStepTime(independent)<chainStepTime(speeding),'split speed progresses independently');
+wave=2;nextWave();check(chains.every(c=>c.wallCounter.touches===0&&chainStepTime(c)===Math.max(.055,.15-wave*.009)),'new level resets wall speed');
+chains[0].wallCounter.touches=10000;check(chainStepTime(chains[0])===.035,'speed has playable upper limit');reset();
 const realGet=document.getElementById;document.getElementById=id=>id==='rade'?null:realGet(id);$('start').onclick();advanceIntro(5);check(state==='playing','start survives older HTML without RADE status');document.getElementById=realGet;
 pause();check(state==='paused','pause');pause();check(state==='playing','resume');
 `,sandbox);console.log('PASS: starting bug; +1/+2/+3 wall growth; block exclusion; alternating horns; phased immunity and recovery; solid hits; increasing level chain count and alternating spawns; damage never respawns a long chain; restart; bot Z and hop; glass bands; third-kill 30-second RADE activation, side fire and expiry; pause/resume');
