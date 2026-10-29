@@ -96,7 +96,7 @@ let fading=arrow.segments[0];fading.phased=true;fading.phaseTimer=10;update(.25)
 // Actual level clears announce the new level and add distinct, bounded defects.
 reset();blocks=[];links=[];chains=[];update(.001);
 check(wave===2&&chains.length===2&&levelNotice===5,'clear announces next level');
-check(newDefects>=3&&newDefects<=8&&blocks.length===newDefects,'message counts newly introduced defects');
+check(newDefects>=10&&newDefects<=20&&blocks.length===newDefects,'message counts newly introduced defects');
 check(new Set(blocks.map(b=>b.x+','+b.y)).size===blocks.length,'new defects occupy distinct cells');
 check(blocks.every(b=>b.hp===3&&b.y<DEFENSE_TOP),'new defects stay above flight zone');
 const added=blocks.length;update(.01);check(blocks.length===added&&levelNotice<5,'defects added once per clear');

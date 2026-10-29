@@ -27,7 +27,7 @@ function introduceDefects(){
   const px=x*CELL+12,py=y*CELL+12;
   if(!blocks.some(b=>b.x===px&&b.y===py)&&!chains.some(c=>c.segments.some(s=>Math.abs(s.x-px)<CELL&&Math.abs(s.y-py)<CELL)))empty.push({x:px,y:py,hp:3});
  }
- const count=Math.min(empty.length,Math.floor(rand(3,9)));
+ const count=Math.min(empty.length,Math.floor(rand(10,21)));
  for(let i=0;i<count;i++){const j=Math.floor(Math.random()*empty.length);blocks.push(empty.splice(j,1)[0])}
  return count;
 }
