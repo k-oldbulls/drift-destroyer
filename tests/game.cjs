@@ -43,7 +43,7 @@ reset();fireMissile();check(missiles.length===1&&missiles[0].x===player.x&&!miss
 for(let i=0;i<9;i++)chargeMissile();check(!missileReady&&missileShots===9,'nine shots cannot reload');chargeMissile();check(missileReady,'tenth shot reloads');
 check(Math.abs(Math.PI*BLAST_RADIUS**2-90*Math.PI*BUG_RADIUS**2)<.0001,'tripled radius covers ninety bugs of area');
 chains=[{segments:[segment(400,300),segment(420,300),segment(496,300)],dir:1,clock:0,growth:0}];chains[0].segments[0].phased=true;blocks=[];detonate(400,300);check(chains.reduce((n,c)=>n+c.segments.length,0)===2,'blast respects radius and phase immunity');
-state='paused';fireMissile();check(missiles.length===1,'cannot fire while paused');$('reset').onclick();check(state==='ready'&&score===0&&lives===3&&missiles.length===0&&blasts.length===0&&missileReady&&chains[0].segments.length===1,'reset returns to ready during pause');$('start').onclick();check(state==='playing','start works after reset');
+state='paused';fireMissile();check(missiles.length===1,'cannot fire while paused');$('reset').onclick();check(state==='ready'&&score===0&&lives===3&&missiles.length===0&&blasts.length===0&&missileReady&&chains[0].segments.length===1,'reset returns to ready during pause');$('start').onclick();advanceIntro(5);check(state==='playing','start works after reset');
 reset();bot=createBot();let patrolStart=bot.x;
 moveBot(.1);check(bot.x>patrolStart&&bot.y===535,'bot top Z stroke');
 bot.x=bot.route[1].x;bot.y=535;bot.leg=1;moveBot(.1);check(bot.x<bot.route[1].x&&bot.y>535,'bot diagonal Z stroke');
@@ -74,7 +74,7 @@ updateRade(10);check(radeTime>19&&radeTime<=20,'RADE remains active after ten se
 for(let i=0;i<3;i++)registerBotKill();check(radeTime===30,'RADE can be earned again');reset();check(radeTime===0&&botKills===0,'reset clears RADE');
 bot=createBot();bot.x=400;bot.y=300;botKills=2;detonate(400,300);check(bot===null&&radeTime===30,'missile bot kill also earns RADE');
 reset();check(bot===null,'reset clears bot');
-resetToReady();check(state==='ready'&&$('overline').textContent==='GAME RESET','reset shows confirmation');$('start').onclick();check(state==='playing','restart from confirmation');
+resetToReady();check(state==='ready'&&$('overline').textContent==='GAME RESET','reset shows confirmation');$('start').onclick();advanceIntro(5);check(state==='playing','restart from confirmation');
 reset();blocks=[];links=[];invincible=0;botKills=2;bot=createBot();bot.x=player.x;bot.y=player.y;update(.001);
 check(bot===null&&lives===2&&radeTime===30&&botKills===0,'bot crash counts as third kill and damages hull');
 bot=createBot();bot.x=player.x;bot.y=player.y;update(.001);check(bot!==null&&lives===2&&botKills===0,'protected contact cannot repeatedly count kills');
@@ -90,6 +90,7 @@ let totalBefore=chains.reduce((n,c)=>n+c.segments.length+c.growth,0);radeTime=30
 check(chains.reduce((n,c)=>n+c.segments.length+c.growth,0)===totalBefore,'RADE and respawn protection do not add drift segments');
 let inherited={segments:[segment(300,300)],dir:1,clock:0,growth:0,wallCounter:firstDrift.wallCounter};inherited.segments[0].x=924;stepChain(inherited);check(inherited.segments.length+inherited.growth===5,'split uses original drift counter without duplicating pending growth');
 reset();
-const realGet=document.getElementById;document.getElementById=id=>id==='rade'?null:realGet(id);$('start').onclick();check(state==='playing','start survives older HTML without RADE status');document.getElementById=realGet;
+resetToReady();startIntro();check(state==='intro'&&introElapsed===0,'start enters intro');let introX=player.x;aim({clientX:0,clientY:0});check(player.x===introX,'intro blocks movement');fireMissile();check(missiles.length===0,'intro blocks weapons');advanceIntro(4.999);check(state==='intro'&&tick===0&&spawn===0,'no gameplay before five seconds');startIntro();check(introElapsed===4.999,'repeated start does not restart intro');advanceIntro(.0011);check(state==='playing','five seconds starts gameplay');resetToReady();startIntro();resetToReady();advanceIntro(6);check(state==='ready','reset cancels intro');reset();
+const realGet=document.getElementById;document.getElementById=id=>id==='rade'?null:realGet(id);$('start').onclick();advanceIntro(5);check(state==='playing','start survives older HTML without RADE status');document.getElementById=realGet;
 pause();check(state==='paused','pause');pause();check(state==='playing','resume');
 `,sandbox);console.log('PASS: starting bug; +1/+2/+3 wall growth; block exclusion; alternating horns; phased immunity and recovery; solid hits; increasing level chain count and alternating spawns; damage never respawns a long chain; restart; bot Z and hop; glass bands; third-kill 30-second RADE activation, side fire and expiry; pause/resume');

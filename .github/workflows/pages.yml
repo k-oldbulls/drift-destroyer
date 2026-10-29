@@ -27,7 +27,7 @@ jobs:
         run: |
           mkdir -p _site/assets
           cp index.html style.css game.js _site/
-          cp assets/irover-sprite.png assets/bot-sprite.png _site/assets/
+          cp assets/irover-sprite.png assets/bot-sprite.png assets/title-screen.png _site/assets/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

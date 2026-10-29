@@ -4,7 +4,7 @@ const W=960,H=640,CELL=24,COLS=40,keys=new Set(),shipSprite=new Image();shipSpri
 const botSprite=new Image();botSprite.src='assets/bot-sprite.png';
 const DEFENSE_TOP=505,GLASS_BANDS=[{color:'#61ff91',top:0},{color:'#ffe76a',top:DEFENSE_TOP/3},{color:'#ff655d',top:DEFENSE_TOP*2/3}];
 let best=0;try{best=Number(localStorage.getItem('drift-destroyer-best'))||0}catch{}
-let state='ready',score=0,wave=1,lives=3,player={x:480,y:582},bullets=[],chains=[],blocks=[],particles=[],bot=null,last=0,tick=0,shot=0,spawn=0,invincible=0,pointer=false,muted=true,audio,nextHorn=-1,wallTouches=0,links=[],linkTimer=0,missiles=[],blasts=[],missileReady=true,missileShots=0,botKills=0,radeTime=0,radeFlash=0;
+let state='ready',score=0,wave=1,lives=3,player={x:480,y:582},bullets=[],chains=[],blocks=[],particles=[],bot=null,last=0,tick=0,shot=0,spawn=0,invincible=0,pointer=false,muted=false,audio,nextHorn=-1,wallTouches=0,links=[],linkTimer=0,missiles=[],blasts=[],missileReady=true,missileShots=0,botKills=0,radeTime=0,radeFlash=0,introElapsed=0,introNotes=[];
 const BUG_RADIUS=10,BLAST_RADIUS=3*BUG_RADIUS*Math.sqrt(10);
 const $=id=>document.getElementById(id),rand=(a,b)=>a+Math.random()*(b-a);
 function hud(){const radeStatus=$('rade');if(radeStatus)radeStatus.textContent=radeTime>0?'RADE '+Math.ceil(radeTime)+'s':'BOTS '+botKills+'/3';$('missile').textContent=missileReady?'MISSILE READY [M]':'MISSILE '+missileShots+'/10';$('missile').disabled=state!=='playing'||!missileReady;$('score').textContent=String(score).padStart(6,'0');$('best').textContent=String(best).padStart(6,'0');$('wave').textContent=String(wave).padStart(2,'0');$('walls').textContent=String(wallTouches).padStart(2,'0');$('lives').textContent='◆ '.repeat(lives).trim()||'—'}
@@ -116,7 +116,31 @@ function moveBot(dt){
   else{bot.x+=dx/d*travel;bot.y+=dy/d*travel;travel=0}
  }
 }
-function reset(){botKills=0;radeTime=0;radeFlash=0;missiles=[];blasts=[];missileReady=true;missileShots=0;links=[];linkTimer=0;nextHorn=-1;shot=0;pointer=false;keys.clear();tick=0;score=0;wave=1;lives=3;bullets=[];particles=[];bot=null;player={x:480,y:582};invincible=2;blocks=[];for(let y=4;y<21;y++)for(let x=1;x<COLS-1;x++)if(Math.random()<.12)blocks.push({x:x*CELL+12,y:y*CELL+12,hp:3});nextWave();state='playing';$('overlay').classList.add('hidden');last=performance.now();hud()}
+// Traditional Farmer in the Dell melody, synthesized locally as square waves.
+const INTRO_SECONDS=5;
+const INTRO_MELODY=[[60,1],[65,1],[65,1],[65,1],[65,2],[65,1],[67,1],[69,1],[69,1],[69,1],[69,1],[69,2],[69,1],[70,1],[69,1],[67,1],[65,2],[65,1],[64,1],[64,1],[65,4]];
+function stopIntroMusic(){for(const note of introNotes)try{note.stop()}catch{}introNotes=[]}
+function playIntroMusic(){
+ stopIntroMusic();if(muted)return;
+ try{
+  audio??=new (window.AudioContext||window.webkitAudioContext)();audio.resume?.();
+  const units=INTRO_MELODY.reduce((n,note)=>n+note[1],0),beat=4.8/units;let at=audio.currentTime+.03;
+  for(const [pitch,length] of INTRO_MELODY){const o=audio.createOscillator(),g=audio.createGain(),duration=length*beat;
+   o.type='square';o.frequency.value=440*2**((pitch-69)/12);g.gain.setValueAtTime(.0001,at);g.gain.linearRampToValueAtTime(.045,at+.008);g.gain.exponentialRampToValueAtTime(.0001,at+duration*.9);
+   o.connect(g);g.connect(audio.destination);o.start(at);o.stop(at+duration);introNotes.push(o);at+=duration;
+  }
+ }catch{}
+}
+function startIntro(){
+ if(state==='intro'||state==='playing')return;
+ reset();state='intro';introElapsed=0;keys.clear();pointer=false;
+ $('intro').classList.remove('hidden');hud();playIntroMusic();
+}
+function advanceIntro(dt){
+ if(state!=='intro')return;
+ introElapsed+=dt;if(introElapsed>=INTRO_SECONDS){stopIntroMusic();$('intro').classList.add('hidden');state='playing';keys.clear();pointer=false;last=performance.now();hud()}
+}
+function reset(){stopIntroMusic();$('intro').classList.add('hidden');introElapsed=0;botKills=0;radeTime=0;radeFlash=0;missiles=[];blasts=[];missileReady=true;missileShots=0;links=[];linkTimer=0;nextHorn=-1;shot=0;pointer=false;keys.clear();tick=0;score=0;wave=1;lives=3;bullets=[];particles=[];bot=null;player={x:480,y:582};invincible=2;blocks=[];for(let y=4;y<21;y++)for(let x=1;x<COLS-1;x++)if(Math.random()<.12)blocks.push({x:x*CELL+12,y:y*CELL+12,hp:3});nextWave();state='playing';$('overlay').classList.add('hidden');last=performance.now();hud()}
 function resetToReady(){
  reset();state='ready';
  $('overline').textContent='GAME RESET';$('title').textContent='Deploy OBI.';
@@ -160,7 +184,7 @@ if(radeFlash>0&&Math.floor(radeFlash*5)%2===0){
  ctx.save();ctx.textAlign='center';ctx.font='bold 64px Arial';ctx.shadowColor='#ffe76a';ctx.shadowBlur=22;ctx.fillStyle='#fff4a1';ctx.fillText('RADE Enabled',W/2,DEFENSE_TOP/2+20);ctx.restore();
 }
 ctx.fillStyle='#668897';ctx.font='9px monospace';ctx.fillText('OBI / DEFENSE ZONE',18,625)}
-function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;if(state==='playing')update(dt);draw();requestAnimationFrame(frame)}
-window.addEventListener('keydown',e=>{if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.length===1?e.key.toLowerCase():e.key);if(e.repeat)return;if(e.key==='Enter'){if(state==='paused')pause();else if(state!=='playing')reset()}if(e.key.toLowerCase()==='p')pause();if(e.key.toLowerCase()==='m')fireMissile()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{keys.clear();pointer=false;if(state==='playing')pause()});
-function aim(e){const r=canvas.getBoundingClientRect();player.x=Math.max(25,Math.min(W-25,(e.clientX-r.left)*W/r.width));player.y=Math.max(515,Math.min(H-28,(e.clientY-r.top)*H/r.height))}canvas.addEventListener('pointermove',aim);canvas.addEventListener('pointerdown',e=>{aim(e);pointer=true;canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointerup',()=>pointer=false);canvas.addEventListener('pointercancel',()=>pointer=false);$('start').onclick=()=>state==='paused'?pause():reset();$('pause').onclick=pause;$('reset').onclick=resetToReady;$('missile').onclick=fireMissile;$('sound').onclick=()=>{muted=!muted;$('sound').textContent='SOUND '+(muted?'OFF':'ON');tone(500,.1,'triangle')};
+function frame(now){const introLast=last,previousState=state;const dt=Math.min((now-last)/1000,.04);last=now;if(state==='intro')advanceIntro(Math.max(0,(now-introLast)/1000));if(state==='playing'&&previousState==='playing')update(dt);draw();requestAnimationFrame(frame)}
+window.addEventListener('keydown',e=>{if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.length===1?e.key.toLowerCase():e.key);if(e.repeat)return;if(e.key==='Enter'){if(state==='paused')pause();else if(state!=='playing'&&state!=='intro')startIntro()}if(e.key.toLowerCase()==='p')pause();if(e.key.toLowerCase()==='m')fireMissile()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{keys.clear();pointer=false;if(state==='playing')pause()});
+function aim(e){if(state!=='playing')return;const r=canvas.getBoundingClientRect();player.x=Math.max(25,Math.min(W-25,(e.clientX-r.left)*W/r.width));player.y=Math.max(515,Math.min(H-28,(e.clientY-r.top)*H/r.height))}canvas.addEventListener('pointermove',aim);canvas.addEventListener('pointerdown',e=>{if(state!=='playing')return;aim(e);pointer=true;canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointerup',()=>pointer=false);canvas.addEventListener('pointercancel',()=>pointer=false);$('start').onclick=()=>state==='paused'?pause():startIntro();$('pause').onclick=pause;$('reset').onclick=resetToReady;$('missile').onclick=fireMissile;$('sound').onclick=()=>{muted=!muted;if(muted)stopIntroMusic();$('sound').textContent='SOUND '+(muted?'OFF':'ON');tone(500,.1,'triangle')};
 for(let i=0;i<60;i++)blocks.push({x:Math.floor(rand(1,39))*24+12,y:Math.floor(rand(4,20))*24+12,hp:3});hud();requestAnimationFrame(frame);

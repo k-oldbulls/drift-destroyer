@@ -42,3 +42,7 @@ Desktop build configuration is included separately. Run `npm ci`, then `npm run 
 ## Artwork
 
 OBI iRover and the red robot sprites were adapted from user-supplied reference artwork using image generation to isolate them onto transparent backgrounds. Gameplay code and synthesized audio were created for this project.
+
+## Startup
+
+Start Game or Enter displays the supplied Old Bulls Innovation title artwork unchanged for five seconds before controls and gameplay activate. A locally synthesized square-wave rendition of the traditional Farmer in the Dell melody accompanies the intro. Sound starts enabled and can be muted; Reset cancels the intro and its audio. Resuming a paused game does not repeat the introduction.
