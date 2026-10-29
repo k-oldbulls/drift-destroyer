@@ -46,3 +46,5 @@ OBI iRover and the red robot sprites were adapted from user-supplied reference a
 ## Startup
 
 Start Game or Enter displays the supplied Old Bulls Innovation title artwork unchanged for five seconds before controls and gameplay activate. A locally synthesized square-wave rendition of the traditional Farmer in the Dell melody accompanies the intro. Sound starts enabled and can be muted; Reset cancels any current intro/audio and starts a new five-second introduction, followed automatically by a fresh game. Resuming a paused game does not repeat the introduction.
+
+Dark-debt chevrons are grey beneath the virtual glass: the upper, middle, and lower panes tint them green, yellow, and red respectively. A chevron crossing a pane boundary receives both tints. The optical tint preserves the near-black inactive state.

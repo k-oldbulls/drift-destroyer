@@ -172,7 +172,13 @@ for(const c of chains)for(const s of c.segments){
  ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.angle??(c.dir===1?0:Math.PI));
  ctx.globalAlpha=.12+.88*visibility;ctx.fillStyle=`rgb(${grey},${grey},${grey})`;ctx.shadowBlur=0;
  // Filled > chevron, rotated to each segment's own movement direction.
- ctx.beginPath();ctx.moveTo(-10,-10);ctx.lineTo(2,-10);ctx.lineTo(12,0);ctx.lineTo(2,10);ctx.lineTo(-10,10);ctx.lineTo(0,0);ctx.closePath();ctx.fill();ctx.restore();
+ ctx.beginPath();ctx.moveTo(-10,-10);ctx.lineTo(2,-10);ctx.lineTo(12,0);ctx.lineTo(2,10);ctx.lineTo(-10,10);ctx.lineTo(0,0);ctx.closePath();ctx.fill();
+ // Grey debt sits behind tinted glass. Clip the optical tint to the glyph,
+ // using world-space bands so a chevron straddling a seam has both colours.
+ ctx.clip();ctx.rotate(-(s.angle??(c.dir===1?0:Math.PI)));ctx.translate(-s.x,-s.y);
+ ctx.globalCompositeOperation='multiply';ctx.globalAlpha=.45;
+ for(const band of GLASS_BANDS){ctx.fillStyle=band.color;ctx.fillRect(0,band.top,W,DEFENSE_TOP/3)}
+ ctx.restore();
 }
 ctx.globalAlpha=1;ctx.shadowColor='#64e7ff';ctx.shadowBlur=14;ctx.fillStyle='#a4faff';for(const b of bullets){if(b.vx){ctx.fillStyle='#fff3a2';ctx.fillRect(b.x-10,b.y-2,20,4)}else{ctx.fillStyle='#a4faff';ctx.fillRect(b.x-2,b.y-8,4,17)}}ctx.shadowBlur=0;
 for(const m of missiles){ctx.fillStyle='#fff0bc';ctx.shadowColor='#ffb65f';ctx.shadowBlur=16;ctx.beginPath();ctx.moveTo(m.x,m.y-9);ctx.lineTo(m.x-5,m.y+7);ctx.lineTo(m.x+5,m.y+7);ctx.closePath();ctx.fill();ctx.fillStyle='#ff9445';ctx.fillRect(m.x-2,m.y+7,4,10)}ctx.shadowBlur=0;
