@@ -70,6 +70,18 @@ function stepChain(c){
  if(c.growth>0){const tail=previous[previous.length-1];c.segments.push(segment(tail.x,tail.y,c.segments[c.segments.length-1].angle));c.growth--}
 }
 
+function rootOf(c){
+ if(!c.segments.includes(c.root)){c.root=c.segments[0];c.rootTimer=rand(1,3)}
+ return c.root;
+}
+function updateRoot(c,dt){
+ rootOf(c);c.rootTimer-=dt;
+ while(c.rootTimer<=0){
+  const choices=c.segments.filter(s=>s!==c.root);
+  if(choices.length)c.root=choices[Math.floor(Math.random()*choices.length)];
+  c.rootTimer+=rand(1,3);
+ }
+}
 // Root termination freezes the event, then propagates red before clearing it.
 function terminateRoot(c){
  if(c.reaction)return;
@@ -85,7 +97,8 @@ function updateReaction(c,dt){
  if(gone===c.segments.length)c.segments=[];
 }
 function splitEvent(c,segments,growth=0,dir=c.dir){
- return {segments,dir,clock:0,growth,wallCounter:{touches:c.wallCounter?.touches??0}};
+ const root=segments.includes(c.root)?c.root:segments[Math.floor(Math.random()*segments.length)];
+ return {segments,dir,clock:0,growth,root,rootTimer:root===c.root?(c.rootTimer??rand(1,3)):rand(1,3),wallCounter:{touches:c.wallCounter?.touches??0}};
 }
 function registerBotKill(){
  botKills++;
@@ -107,7 +120,7 @@ function detonate(x,y){
  const survivors=[];let removed=0;
  for(const c of chains){
   if(c.reaction){survivors.push(c);continue}
-  if(c.segments[0]&&!c.segments[0].phased&&inside(c.segments[0])){terminateRoot(c);if(c.segments.length)survivors.push(c);continue}
+  if(rootOf(c)&&!c.root.phased&&inside(c.root)){terminateRoot(c);if(c.segments.length)survivors.push(c);continue}
   let run=[],first=true;
   function keep(){if(run.length){survivors.push(splitEvent(c,run,first?c.growth:0));first=false;run=[]}}
   for(const s of c.segments){if(!s.phased&&inside(s)){keep();removed++;burst(s.x,s.y,'#d8d8d8',5)}else run.push(s)}keep();
@@ -186,12 +199,13 @@ function update(dt){levelNotice=Math.max(0,levelNotice-dt);updateRade(dt);update
 for(const b of bullets){b.previousY=b.y;b.previousX=b.x;if(b.vx)b.x+=b.vx*dt;else b.y-=700*dt;if(blocksShot(b)){burst(b.x,b.y,"#ff9c52",4);b.y=-100}}
 for(const c of chains){
  if(c.reaction){updateReaction(c,dt);continue}
+ updateRoot(c,dt);
  for(const s of c.segments){s.visibility??=1;const target=s.phased?0:1;s.visibility+=Math.max(-dt*4,Math.min(dt*4,target-s.visibility));s.phaseTimer-=dt;if(s.phaseTimer<=0){s.phased=!s.phased;s.phaseTimer=s.phased?rand(.8,2):rand(2,5)}}
  c.clock+=dt;const speed=Math.max(.055,.15-wave*.009);
  while(c.clock>=speed){c.clock-=speed;stepChain(c)}
 }
 updateMissiles(dt);for(const blast of blasts)blast.life-=dt;blasts=blasts.filter(b=>b.life>0);
-for(const b of bullets){if(b.y<0)continue;let m=blocks.find(m=>Math.abs(m.x-b.x)<16&&Math.abs(m.y-b.y)<15);if(m){b.y=-100;m.hp--;burst(m.x,m.y,'#ff9c52',3);if(!m.hp){blocks.splice(blocks.indexOf(m),1);links=links.filter(l=>l.a!==m&&l.b!==m);addScore(5)}continue}for(const c of chains){if(c.reaction)continue;const i=c.segments.findIndex(s=>!s.phased&&Math.abs(s.x-b.x)<17&&Math.abs(s.y-b.y)<17);if(i>=0){if(i===0){terminateRoot(c);b.y=-100;tone(120,.18);break}const s=c.segments[i];burst(s.x,s.y,'#d8d8d8');if(!blocks.some(m=>m.x===s.x&&m.y===s.y))blocks.push({x:s.x,y:s.y,hp:3});const tail=c.segments.splice(i);tail.shift();if(tail.length){chains.push(splitEvent(c,tail,c.growth,-c.dir));c.growth=0;c.wallCounter={touches:c.wallCounter?.touches??0};}b.y=-100;addScore(20);tone(200,.08);break}}if(bot&&(b.vx?Math.abs(b.y-bot.y)<27&&bot.x>=Math.min(b.previousX,b.x)-27&&bot.x<=Math.max(b.previousX,b.x)+27:Math.hypot(b.x-bot.x,b.y-bot.y)<27)){registerBotKill();burst(bot.x,bot.y,'#ff5945',25);bot=null;b.y=-100;addScore(100);tone(400,.15)}}
+for(const b of bullets){if(b.y<0)continue;let m=blocks.find(m=>Math.abs(m.x-b.x)<16&&Math.abs(m.y-b.y)<15);if(m){b.y=-100;m.hp--;burst(m.x,m.y,'#ff9c52',3);if(!m.hp){blocks.splice(blocks.indexOf(m),1);links=links.filter(l=>l.a!==m&&l.b!==m);addScore(5)}continue}for(const c of chains){if(c.reaction)continue;const i=c.segments.findIndex(s=>!s.phased&&Math.abs(s.x-b.x)<17&&Math.abs(s.y-b.y)<17);if(i>=0){if(c.segments[i]===rootOf(c)){terminateRoot(c);b.y=-100;tone(120,.18);break}const s=c.segments[i];burst(s.x,s.y,'#d8d8d8');if(!blocks.some(m=>m.x===s.x&&m.y===s.y))blocks.push({x:s.x,y:s.y,hp:3});const tail=c.segments.splice(i);tail.shift();if(tail.length){chains.push(splitEvent(c,tail,c.growth,-c.dir));c.growth=0;c.wallCounter={touches:c.wallCounter?.touches??0};}rootOf(c);b.y=-100;addScore(20);tone(200,.08);break}}if(bot&&(b.vx?Math.abs(b.y-bot.y)<27&&bot.x>=Math.min(b.previousX,b.x)-27&&bot.x<=Math.max(b.previousX,b.x)+27:Math.hypot(b.x-bot.x,b.y-bot.y)<27)){registerBotKill();burst(bot.x,bot.y,'#ff5945',25);bot=null;b.y=-100;addScore(100);tone(400,.15)}}
 bullets=bullets.filter(b=>b.y>-20&&b.x>-30&&b.x<W+30);chains=chains.filter(c=>c.segments.length);if(!chains.length){wave++;nextWave();newDefects=introduceDefects();levelNotice=5;invincible=1.5;tone(950,.25,'triangle')}
 spawn+=dt;if(!bot&&spawn>9){bot=Math.random()<.5?createBot():createBot(3,true,-1);spawn=0}moveBot(dt);if(bot&&invincible<=0&&Math.hypot(bot.x-player.x,bot.y-player.y)<39){registerBotKill();burst(bot.x,bot.y,'#ff5945',25);bot=null;hit();}
 for(const c of chains)if(!c.reaction)for(const s of c.segments)if(Math.hypot(s.x-player.x,s.y-player.y)<29)hit();for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}particles=particles.filter(p=>p.life>0)}
@@ -201,7 +215,7 @@ const connectedBlocks=new Set(links.filter(l=>l.life>0).flatMap(l=>[l.a,l.b]));
 for(const m of blocks){const connected=connectedBlocks.has(m);ctx.globalAlpha=.4+m.hp*.2;ctx.fillStyle=connected?'#409dff':'#f39a4a';ctx.fillRect(m.x-7,m.y-7,14,14);ctx.strokeStyle=connected?'#a4dbff':'#ffd29a';ctx.lineWidth=1;ctx.strokeRect(m.x-7,m.y-7,14,14);ctx.fillStyle=connected?'#155aa6':'#ad5e27';ctx.fillRect(m.x-3,m.y-3,6,6)}ctx.globalAlpha=1;
 for(const c of chains)for(const [i,s] of c.segments.entries()){
  if(c.reaction&&i<c.reaction.removed)continue;
- const red=i===0||(c.reaction&&c.reaction.elapsed>=i*.12);
+ const red=s===rootOf(c)||(c.reaction&&c.reaction.elapsed>=i*.12);
  const visibility=c.reaction?1:s.visibility??(s.phased?0:1),grey=Math.round(8+208*visibility);
  ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.angle??(c.dir===1?0:Math.PI));
  ctx.globalAlpha=.12+.88*visibility;ctx.fillStyle=red?`rgb(${Math.round(8+247*visibility)},${Math.round(8+55*visibility)},${Math.round(8+55*visibility)})`:`rgb(${grey},${grey},${grey})`;ctx.shadowBlur=0;

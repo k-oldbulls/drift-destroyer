@@ -124,6 +124,17 @@ terminateRoot(chains[0]);check(!chains[1].reaction,'terminating one split leaves
 reset();blocks=[];links=[];chains=[{segments:[segment(400,300),segment(376,300)],dir:1,clock:-1,growth:0,wallCounter:{touches:0}}];
 chains[0].segments[0].phased=true;bullets=[{x:400,y:310}];update(.001);check(!chains[0].reaction,'phased root remains immune');
 chains[0].segments[0].phased=false;detonate(400,300);check(chains[0].reaction,'missile root hit triggers reaction');draw();reset();
+// The red root relocates within its own train, never remaining over three seconds.
+reset();blocks=[];links=[];
+let roaming={segments:[segment(400,300),segment(376,300),segment(352,300)],dir:1,clock:-1,growth:0,wallCounter:{touches:0}};
+chains=[roaming];rootOf(roaming);
+for(let i=0;i<30;i++){const old=roaming.root;updateRoot(roaming,roaming.rootTimer+.001);check(roaming.root!==old&&roaming.segments.includes(roaming.root),'root changes to another member');check(roaming.rootTimer>0&&roaming.rootTimer<=3,'root residence at most three seconds')}
+roaming.root=roaming.segments[1];roaming.rootTimer=3;const carriedRoot=roaming.root;bullets=[{x:400,y:310}];update(.001);
+check(chains.length===1&&chains[0].segments.length===2&&!chains[0].reaction,'nonroot head hit does not terminate train');
+check(chains[0].root===carriedRoot,'surviving root follows its split');
+let mobile=chains[0];mobile.root=mobile.segments[1];mobile.rootTimer=3;bullets=[{x:mobile.root.x,y:mobile.root.y+10}];update(.001);check(mobile.reaction,'body root shot triggers cascade');
+reset();blocks=[];links=[];chains=[{segments:[segment(200,300),segment(400,300),segment(600,300)],dir:1,clock:-1,growth:0}];
+chains[0].root=chains[0].segments[1];chains[0].rootTimer=3;detonate(400,300);check(chains[0].reaction,'missile targets moving root rather than head');draw();reset();
 const realGet=document.getElementById;document.getElementById=id=>id==='rade'?null:realGet(id);$('start').onclick();advanceIntro(5);check(state==='playing','start survives older HTML without RADE status');document.getElementById=realGet;
 pause();check(state==='paused','pause');pause();check(state==='playing','resume');
 `,sandbox);console.log('PASS: starting bug; +1/+2/+3 wall growth; block exclusion; alternating horns; phased immunity and recovery; solid hits; increasing level chain count and alternating spawns; damage never respawns a long chain; restart; bot Z and hop; glass bands; third-kill 30-second RADE activation, side fire and expiry; pause/resume');
