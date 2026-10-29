@@ -1,0 +1,60 @@
+{
+  "name": "drift-destroyer",
+  "version": "1.1.1",
+  "description": "Pilot OBI iRover and destroy growing software drift bugs.",
+  "author": "Drift Destroyer Team",
+  "private": true,
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node tests/game.cjs",
+    "dist:mac": "electron-builder --mac --arm64 --x64 --publish never",
+    "dist:win": "electron-builder --win --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "45.1.0",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.driftdestroyer.game",
+    "productName": "Drift Destroyer",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "desktop/**",
+      "index.html",
+      "style.css",
+      "game.js",
+      "assets/**"
+    ],
+    "artifactName": "Drift-Destroyer-${version}-${os}-${arch}.${ext}",
+    "mac": {
+      "category": "public.app-category.arcade-games",
+      "icon": "assets/irover-sprite.png",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "identity": null
+    },
+    "dmg": {
+      "title": "Install Drift Destroyer"
+    },
+    "win": {
+      "icon": "assets/irover-sprite.png",
+      "target": [
+        "nsis"
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Drift Destroyer"
+    }
+  }
+}
