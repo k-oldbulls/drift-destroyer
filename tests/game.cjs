@@ -104,6 +104,26 @@ levelNotice=.01;update(.02);check(levelNotice===0,'announcement expires');
 blocks=[];for(let y=4;y<21;y++)for(let x=1;x<COLS-1;x++)blocks.push({x:x*CELL+12,y:y*CELL+12,hp:3});
 check(introduceDefects()===0,'full board reports zero without overlapping');
 reset();check(levelNotice===0&&newDefects===0,'reset clears announcement');draw();
+// Root shots freeze and clear the entire event, including phased followers.
+reset();blocks=[];links=[];
+chains=[{segments:[segment(400,300),segment(376,300),segment(352,300)],dir:1,clock:-1,growth:4,wallCounter:{touches:2}}];
+chains[0].segments[1].phased=true;bullets=[{x:400,y:310}];update(.001);
+let reacting=chains[0],frozen=reacting.segments.map(s=>s.x+','+s.y).join(';');
+check(reacting.reaction&&reacting.growth===0&&score===60,'root triggers whole event once');
+update(.13);check(reacting.segments.map(s=>s.x+','+s.y).join(';')===frozen&&reacting.reaction.removed===0,'reaction freezes before disappearance');
+let reactionScore=score;detonate(400,300);check(score===reactionScore,'blast cannot score reacting event twice');
+update(.36);check(reacting.reaction.removed===1,'front disappears first after red propagation');
+update(.3);check(wave===2,'next level waits for reaction to finish');
+// A body hit creates independent roots and independent wall counters.
+reset();blocks=[];links=[];
+chains=[{segments:[segment(400,300),segment(376,300),segment(352,300),segment(328,300),segment(304,300)],dir:1,clock:-1,growth:2,wallCounter:{touches:3}}];
+bullets=[{x:352,y:310}];update(.001);
+check(chains.length===2&&chains.every(c=>c.segments.length===2&&!c.reaction),'body shot splits into two live events');
+check(chains[0].wallCounter!==chains[1].wallCounter&&chains.reduce((n,c)=>n+c.growth,0)===2,'independent counters without duplicated growth');
+terminateRoot(chains[0]);check(!chains[1].reaction,'terminating one split leaves the other alive');
+reset();blocks=[];links=[];chains=[{segments:[segment(400,300),segment(376,300)],dir:1,clock:-1,growth:0,wallCounter:{touches:0}}];
+chains[0].segments[0].phased=true;bullets=[{x:400,y:310}];update(.001);check(!chains[0].reaction,'phased root remains immune');
+chains[0].segments[0].phased=false;detonate(400,300);check(chains[0].reaction,'missile root hit triggers reaction');draw();reset();
 const realGet=document.getElementById;document.getElementById=id=>id==='rade'?null:realGet(id);$('start').onclick();advanceIntro(5);check(state==='playing','start survives older HTML without RADE status');document.getElementById=realGet;
 pause();check(state==='paused','pause');pause();check(state==='playing','resume');
 `,sandbox);console.log('PASS: starting bug; +1/+2/+3 wall growth; block exclusion; alternating horns; phased immunity and recovery; solid hits; increasing level chain count and alternating spawns; damage never respawns a long chain; restart; bot Z and hop; glass bands; third-kill 30-second RADE activation, side fire and expiry; pause/resume');

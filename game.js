@@ -48,6 +48,7 @@ function updateLinks(dt){
 function crossesVertical(x,nx,y){return links.some(l=>l.vertical&&Math.min(x,nx)-10<=l.a.x&&Math.max(x,nx)+10>=l.a.x&&y>=Math.min(l.a.y,l.b.y)&&y<=Math.max(l.a.y,l.b.y))}
 function blocksShot(b){if(b.vx)return false;return links.some(l=>!l.vertical&&b.x>=Math.min(l.a.x,l.b.x)&&b.x<=Math.max(l.a.x,l.b.x)&&b.y-8<=l.a.y&&b.previousY+8>=l.a.y)}
 function stepChain(c){
+ if(c.reaction||!c.segments.length)return;
  c.wallCounter??={touches:0};
  const previous=c.segments.map(s=>({x:s.x,y:s.y})),head=c.segments[0],nx=head.x+c.dir*CELL;
  const wall=nx<12||nx>W-12;
@@ -69,6 +70,23 @@ function stepChain(c){
  if(c.growth>0){const tail=previous[previous.length-1];c.segments.push(segment(tail.x,tail.y,c.segments[c.segments.length-1].angle));c.growth--}
 }
 
+// Root termination freezes the event, then propagates red before clearing it.
+function terminateRoot(c){
+ if(c.reaction)return;
+ addScore(c.segments.length*20);c.growth=0;
+ if(c.segments.length===1){burst(c.segments[0].x,c.segments[0].y,'#ff4545');c.segments=[];return}
+ c.reaction={elapsed:0,removed:0};
+}
+function updateReaction(c,dt){
+ const r=c.reaction;r.elapsed+=dt;
+ const redDuration=c.segments.length*.12;
+ const gone=Math.min(c.segments.length,Math.max(0,Math.floor((r.elapsed-redDuration)/.12)));
+ for(;r.removed<gone;r.removed++){const s=c.segments[r.removed];burst(s.x,s.y,'#ff4545',6)}
+ if(gone===c.segments.length)c.segments=[];
+}
+function splitEvent(c,segments,growth=0,dir=c.dir){
+ return {segments,dir,clock:0,growth,wallCounter:{touches:c.wallCounter?.touches??0}};
+}
 function registerBotKill(){
  botKills++;
  if(botKills===3){botKills=0;radeTime=30;radeFlash=2.5;tone(1000,.3,'triangle')}
@@ -87,8 +105,11 @@ function detonate(x,y){
  blasts.push({x,y,life:.45});burst(x,y,'#ffd38a',35);tone(60,.3,'sawtooth');
  const inside=s=>Math.hypot(s.x-x,s.y-y)<=BLAST_RADIUS;
  const survivors=[];let removed=0;
- for(const c of chains){let run=[],first=true;
-  function keep(){if(run.length){survivors.push({...c,segments:run,growth:first?c.growth:0});first=false;run=[]}}
+ for(const c of chains){
+  if(c.reaction){survivors.push(c);continue}
+  if(c.segments[0]&&!c.segments[0].phased&&inside(c.segments[0])){terminateRoot(c);if(c.segments.length)survivors.push(c);continue}
+  let run=[],first=true;
+  function keep(){if(run.length){survivors.push(splitEvent(c,run,first?c.growth:0));first=false;run=[]}}
   for(const s of c.segments){if(!s.phased&&inside(s)){keep();removed++;burst(s.x,s.y,'#d8d8d8',5)}else run.push(s)}keep();
  }
  chains=survivors;
@@ -99,7 +120,7 @@ function detonate(x,y){
 function updateMissiles(dt){
  for(const m of missiles){
   const end=m.y-450*dt,targets=[];
-  for(const c of chains)for(const s of c.segments)if(!s.phased&&Math.abs(s.x-m.x)<=14)targets.push({y:s.y+10});
+  for(const c of chains)if(!c.reaction)for(const s of c.segments)if(!s.phased&&Math.abs(s.x-m.x)<=14)targets.push({y:s.y+10});
   for(const b of blocks)if(Math.abs(b.x-m.x)<=11)targets.push({y:b.y+7});
   for(const l of links)if(!l.vertical&&m.x>=Math.min(l.a.x,l.b.x)&&m.x<=Math.max(l.a.x,l.b.x))targets.push({y:l.a.y});
   if(bot&&Math.abs(bot.x-m.x)<=25)targets.push({y:bot.y+12});
@@ -164,23 +185,26 @@ function hit(){if(invincible>0)return;lives--;burst(player.x,player.y,'#5de8f2',
 function update(dt){levelNotice=Math.max(0,levelNotice-dt);updateRade(dt);updateLinks(dt);tick+=dt;invincible-=dt;shot-=dt;let dx=0,dy=0;if(keys.has('ArrowLeft')||keys.has('a'))dx--;if(keys.has('ArrowRight')||keys.has('d'))dx++;if(keys.has('ArrowUp')||keys.has('w'))dy--;if(keys.has('ArrowDown')||keys.has('s'))dy++;player.x=Math.max(25,Math.min(W-25,player.x+dx*350*dt));player.y=Math.max(515,Math.min(H-28,player.y+dy*350*dt));if((keys.has(' ')||pointer)&&shot<=0){bullets.push({x:player.x+nextHorn*21,y:player.y-29});if(radeTime>0)for(const side of [-1,1])bullets.push({x:player.x+side*28,y:player.y,vx:side*700});burst(player.x+nextHorn*21,player.y-29,'#5de8f2',3);nextHorn*=-1;chargeMissile();shot=.115;tone(nextHorn<0?780:720,.04,'triangle')}
 for(const b of bullets){b.previousY=b.y;b.previousX=b.x;if(b.vx)b.x+=b.vx*dt;else b.y-=700*dt;if(blocksShot(b)){burst(b.x,b.y,"#ff9c52",4);b.y=-100}}
 for(const c of chains){
+ if(c.reaction){updateReaction(c,dt);continue}
  for(const s of c.segments){s.visibility??=1;const target=s.phased?0:1;s.visibility+=Math.max(-dt*4,Math.min(dt*4,target-s.visibility));s.phaseTimer-=dt;if(s.phaseTimer<=0){s.phased=!s.phased;s.phaseTimer=s.phased?rand(.8,2):rand(2,5)}}
  c.clock+=dt;const speed=Math.max(.055,.15-wave*.009);
  while(c.clock>=speed){c.clock-=speed;stepChain(c)}
 }
 updateMissiles(dt);for(const blast of blasts)blast.life-=dt;blasts=blasts.filter(b=>b.life>0);
-for(const b of bullets){if(b.y<0)continue;let m=blocks.find(m=>Math.abs(m.x-b.x)<16&&Math.abs(m.y-b.y)<15);if(m){b.y=-100;m.hp--;burst(m.x,m.y,'#ff9c52',3);if(!m.hp){blocks.splice(blocks.indexOf(m),1);links=links.filter(l=>l.a!==m&&l.b!==m);addScore(5)}continue}for(const c of chains){const i=c.segments.findIndex(s=>!s.phased&&Math.abs(s.x-b.x)<17&&Math.abs(s.y-b.y)<17);if(i>=0){const s=c.segments[i];burst(s.x,s.y,'#d8d8d8');if(!blocks.some(m=>m.x===s.x&&m.y===s.y))blocks.push({x:s.x,y:s.y,hp:3});const tail=c.segments.splice(i);tail.shift();if(tail.length){chains.push({segments:tail,dir:-c.dir,clock:0,growth:c.growth,wallCounter:c.wallCounter});c.growth=0;}b.y=-100;addScore(20);tone(200,.08);break}}if(bot&&(b.vx?Math.abs(b.y-bot.y)<27&&bot.x>=Math.min(b.previousX,b.x)-27&&bot.x<=Math.max(b.previousX,b.x)+27:Math.hypot(b.x-bot.x,b.y-bot.y)<27)){registerBotKill();burst(bot.x,bot.y,'#ff5945',25);bot=null;b.y=-100;addScore(100);tone(400,.15)}}
+for(const b of bullets){if(b.y<0)continue;let m=blocks.find(m=>Math.abs(m.x-b.x)<16&&Math.abs(m.y-b.y)<15);if(m){b.y=-100;m.hp--;burst(m.x,m.y,'#ff9c52',3);if(!m.hp){blocks.splice(blocks.indexOf(m),1);links=links.filter(l=>l.a!==m&&l.b!==m);addScore(5)}continue}for(const c of chains){if(c.reaction)continue;const i=c.segments.findIndex(s=>!s.phased&&Math.abs(s.x-b.x)<17&&Math.abs(s.y-b.y)<17);if(i>=0){if(i===0){terminateRoot(c);b.y=-100;tone(120,.18);break}const s=c.segments[i];burst(s.x,s.y,'#d8d8d8');if(!blocks.some(m=>m.x===s.x&&m.y===s.y))blocks.push({x:s.x,y:s.y,hp:3});const tail=c.segments.splice(i);tail.shift();if(tail.length){chains.push(splitEvent(c,tail,c.growth,-c.dir));c.growth=0;c.wallCounter={touches:c.wallCounter?.touches??0};}b.y=-100;addScore(20);tone(200,.08);break}}if(bot&&(b.vx?Math.abs(b.y-bot.y)<27&&bot.x>=Math.min(b.previousX,b.x)-27&&bot.x<=Math.max(b.previousX,b.x)+27:Math.hypot(b.x-bot.x,b.y-bot.y)<27)){registerBotKill();burst(bot.x,bot.y,'#ff5945',25);bot=null;b.y=-100;addScore(100);tone(400,.15)}}
 bullets=bullets.filter(b=>b.y>-20&&b.x>-30&&b.x<W+30);chains=chains.filter(c=>c.segments.length);if(!chains.length){wave++;nextWave();newDefects=introduceDefects();levelNotice=5;invincible=1.5;tone(950,.25,'triangle')}
 spawn+=dt;if(!bot&&spawn>9){bot=Math.random()<.5?createBot():createBot(3,true,-1);spawn=0}moveBot(dt);if(bot&&invincible<=0&&Math.hypot(bot.x-player.x,bot.y-player.y)<39){registerBotKill();burst(bot.x,bot.y,'#ff5945',25);bot=null;hit();}
-for(const c of chains)for(const s of c.segments)if(Math.hypot(s.x-player.x,s.y-player.y)<29)hit();for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}particles=particles.filter(p=>p.life>0)}
+for(const c of chains)if(!c.reaction)for(const s of c.segments)if(Math.hypot(s.x-player.x,s.y-player.y)<29)hit();for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}particles=particles.filter(p=>p.life>0)}
 function draw(){ctx.clearRect(0,0,W,H);ctx.fillStyle='#061019';ctx.fillRect(0,0,W,H);ctx.strokeStyle='#142632';ctx.lineWidth=.6;for(let x=0;x<W;x+=CELL){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=0;y<H;y+=CELL){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}ctx.fillStyle='#102c382e';ctx.fillRect(0,505,W,135);ctx.setLineDash([4,9]);ctx.strokeStyle='#245063';ctx.beginPath();ctx.moveTo(0,505);ctx.lineTo(W,505);ctx.stroke();ctx.setLineDash([]);
 for(const l of links){ctx.globalAlpha=Math.min(1,l.life*3);ctx.strokeStyle=l.vertical?'#ffc27a':'#f0873f';ctx.lineWidth=2;ctx.shadowColor='#ff973c';ctx.shadowBlur=6;ctx.beginPath();ctx.moveTo(l.a.x,l.a.y);ctx.lineTo(l.b.x,l.b.y);ctx.stroke()}ctx.shadowBlur=0;ctx.globalAlpha=1;
 const connectedBlocks=new Set(links.filter(l=>l.life>0).flatMap(l=>[l.a,l.b]));
 for(const m of blocks){const connected=connectedBlocks.has(m);ctx.globalAlpha=.4+m.hp*.2;ctx.fillStyle=connected?'#409dff':'#f39a4a';ctx.fillRect(m.x-7,m.y-7,14,14);ctx.strokeStyle=connected?'#a4dbff':'#ffd29a';ctx.lineWidth=1;ctx.strokeRect(m.x-7,m.y-7,14,14);ctx.fillStyle=connected?'#155aa6':'#ad5e27';ctx.fillRect(m.x-3,m.y-3,6,6)}ctx.globalAlpha=1;
-for(const c of chains)for(const s of c.segments){
- const visibility=s.visibility??(s.phased?0:1),grey=Math.round(8+208*visibility);
+for(const c of chains)for(const [i,s] of c.segments.entries()){
+ if(c.reaction&&i<c.reaction.removed)continue;
+ const red=i===0||(c.reaction&&c.reaction.elapsed>=i*.12);
+ const visibility=c.reaction?1:s.visibility??(s.phased?0:1),grey=Math.round(8+208*visibility);
  ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.angle??(c.dir===1?0:Math.PI));
- ctx.globalAlpha=.12+.88*visibility;ctx.fillStyle=`rgb(${grey},${grey},${grey})`;ctx.shadowBlur=0;
+ ctx.globalAlpha=.12+.88*visibility;ctx.fillStyle=red?`rgb(${Math.round(8+247*visibility)},${Math.round(8+55*visibility)},${Math.round(8+55*visibility)})`:`rgb(${grey},${grey},${grey})`;ctx.shadowBlur=0;
  // Filled > chevron, rotated to each segment's own movement direction.
  ctx.beginPath();ctx.moveTo(-10,-10);ctx.lineTo(2,-10);ctx.lineTo(12,0);ctx.lineTo(2,10);ctx.lineTo(-10,10);ctx.lineTo(0,0);ctx.closePath();ctx.fill();
  // Grey debt sits behind tinted glass. Clip the optical tint to the glyph,
