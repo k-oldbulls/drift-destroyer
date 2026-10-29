@@ -141,13 +141,8 @@ function advanceIntro(dt){
  introElapsed+=dt;if(introElapsed>=INTRO_SECONDS){stopIntroMusic();$('intro').classList.add('hidden');state='playing';keys.clear();pointer=false;last=performance.now();hud()}
 }
 function reset(){stopIntroMusic();$('intro').classList.add('hidden');introElapsed=0;botKills=0;radeTime=0;radeFlash=0;missiles=[];blasts=[];missileReady=true;missileShots=0;links=[];linkTimer=0;nextHorn=-1;shot=0;pointer=false;keys.clear();tick=0;score=0;wave=1;lives=3;bullets=[];particles=[];bot=null;player={x:480,y:582};invincible=2;blocks=[];for(let y=4;y<21;y++)for(let x=1;x<COLS-1;x++)if(Math.random()<.12)blocks.push({x:x*CELL+12,y:y*CELL+12,hp:3});nextWave();state='playing';$('overlay').classList.add('hidden');last=performance.now();hud()}
-function resetToReady(){
- reset();state='ready';
- $('overline').textContent='GAME RESET';$('title').textContent='Deploy OBI.';
- $('message').innerHTML='Fresh start. One drift bug. Full hull.<br>Press Start Game or Enter when you’re ready.';
- $('start').innerHTML='START GAME <span>↗</span>';$('hint').textContent='PRESS ENTER TO START';
- $('overlay').classList.remove('hidden');
- $('reset').blur?.();hud();
+function restartGame(){
+ state='ready';startIntro();$('reset').blur?.();
 }
 function overlay(title,message,button){$('overline').textContent=state==='paused'?'SYSTEMS ON HOLD':'CHARGE COMPLETE';$('title').textContent=title;$('message').innerHTML=message;$('start').innerHTML=button+' <span>↗</span>';$('hint').textContent='PRESS ENTER TO '+(state==='paused'?'RESUME':'RESTART');$('overlay').classList.remove('hidden')}
 function pause(){if(state==='playing'){state='paused';overlay('Take a breather.','OBI is on standby. The drift is paused.','RESUME GAME')}else if(state==='paused'){state='playing';$('overlay').classList.add('hidden')}}
@@ -186,5 +181,5 @@ if(radeFlash>0&&Math.floor(radeFlash*5)%2===0){
 ctx.fillStyle='#668897';ctx.font='9px monospace';ctx.fillText('OBI / DEFENSE ZONE',18,625)}
 function frame(now){const introLast=last,previousState=state;const dt=Math.min((now-last)/1000,.04);last=now;if(state==='intro')advanceIntro(Math.max(0,(now-introLast)/1000));if(state==='playing'&&previousState==='playing')update(dt);draw();requestAnimationFrame(frame)}
 window.addEventListener('keydown',e=>{if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.length===1?e.key.toLowerCase():e.key);if(e.repeat)return;if(e.key==='Enter'){if(state==='paused')pause();else if(state!=='playing'&&state!=='intro')startIntro()}if(e.key.toLowerCase()==='p')pause();if(e.key.toLowerCase()==='m')fireMissile()});window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));window.addEventListener('blur',()=>{keys.clear();pointer=false;if(state==='playing')pause()});
-function aim(e){if(state!=='playing')return;const r=canvas.getBoundingClientRect();player.x=Math.max(25,Math.min(W-25,(e.clientX-r.left)*W/r.width));player.y=Math.max(515,Math.min(H-28,(e.clientY-r.top)*H/r.height))}canvas.addEventListener('pointermove',aim);canvas.addEventListener('pointerdown',e=>{if(state!=='playing')return;aim(e);pointer=true;canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointerup',()=>pointer=false);canvas.addEventListener('pointercancel',()=>pointer=false);$('start').onclick=()=>state==='paused'?pause():startIntro();$('pause').onclick=pause;$('reset').onclick=resetToReady;$('missile').onclick=fireMissile;$('sound').onclick=()=>{muted=!muted;if(muted)stopIntroMusic();$('sound').textContent='SOUND '+(muted?'OFF':'ON');tone(500,.1,'triangle')};
+function aim(e){if(state!=='playing')return;const r=canvas.getBoundingClientRect();player.x=Math.max(25,Math.min(W-25,(e.clientX-r.left)*W/r.width));player.y=Math.max(515,Math.min(H-28,(e.clientY-r.top)*H/r.height))}canvas.addEventListener('pointermove',aim);canvas.addEventListener('pointerdown',e=>{if(state!=='playing')return;aim(e);pointer=true;canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointerup',()=>pointer=false);canvas.addEventListener('pointercancel',()=>pointer=false);$('start').onclick=()=>state==='paused'?pause():startIntro();$('pause').onclick=pause;$('reset').onclick=restartGame;$('missile').onclick=fireMissile;$('sound').onclick=()=>{muted=!muted;if(muted)stopIntroMusic();$('sound').textContent='SOUND '+(muted?'OFF':'ON');tone(500,.1,'triangle')};
 for(let i=0;i<60;i++)blocks.push({x:Math.floor(rand(1,39))*24+12,y:Math.floor(rand(4,20))*24+12,hp:3});hud();requestAnimationFrame(frame);
