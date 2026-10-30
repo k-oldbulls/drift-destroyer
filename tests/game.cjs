@@ -1,4 +1,4 @@
-const fs=require('fs'),vm=require('vm');const elements={};const context=new Proxy({},{get:()=>()=>{}});const sandbox={document:{getElementById(id){return elements[id]??={textContent:'',innerHTML:'',classList:{add(){},remove(){}},getContext:()=>context,getBoundingClientRect:()=>({left:0,top:0,width:960,height:640}),setPointerCapture(){},addEventListener(name,handler){(this.handlers??={})[name]=handler}}}},Image:class{},localStorage:{getItem:()=>null,setItem(){}},window:{addEventListener(){}},performance:{now:()=>0},requestAnimationFrame(){},Math,Set};vm.createContext(sandbox);vm.runInContext(fs.readFileSync('game.js','utf8'),sandbox);vm.runInContext(`
+const fs=require('fs'),vm=require('vm');const elements={};const context=new Proxy({},{get:()=>()=>{}});const sandbox={document:{hidden:false,addEventListener(name,handler){(this.handlers??={})[name]=handler},getElementById(id){return elements[id]??={textContent:'',innerHTML:'',classList:{add(){},remove(){}},getContext:()=>context,getBoundingClientRect:()=>({left:0,top:0,width:960,height:640}),setPointerCapture(){},addEventListener(name,handler){(this.handlers??={})[name]=handler}}}},Image:class{},localStorage:{getItem:()=>null,setItem(){}},window:{addEventListener(name,handler){(this.handlers??={})[name]=handler}},performance:{now:()=>0},requestAnimationFrame(){},Math,Set};vm.createContext(sandbox);vm.runInContext(fs.readFileSync('game.js','utf8'),sandbox);vm.runInContext(`
 function check(ok,label){if(!ok)throw Error(label)}
 reset();check(chains.length===1&&chains[0].segments.length===1,'single starting bug');
 blocks=[];links=[];let c=chains[0];
@@ -178,6 +178,17 @@ let independent=splitEvent(speeding,[segment(200,300)]);check(chainStepTime(inde
 check(chainStepTime(independent)<chainStepTime(speeding),'split speed progresses independently');
 wave=2;nextWave();check(chains.every(c=>c.wallCounter.touches===0&&chainStepTime(c)===Math.max(.055,.15-wave*.009)),'new level resets wall speed');
 chains[0].wallCounter.touches=10000;check(chainStepTime(chains[0])===.035,'speed has playable upper limit');reset();
+// Visible focus changes must not trap firing in an auto-pause loop.
+reset();wave=3;nextWave();blocks=[];links=[];invincible=100;
+for(let cycle=0;cycle<5;cycle++){
+ keys.add(' ');pointer=true;movementPointer=1;window.handlers.blur();
+ check(state==='playing'&&!pointer&&keys.size===0&&movementPointer===null,'visible blur releases inputs without pause');
+ keys.add(' ');shot=0;update(.01);check(state==='playing','level three firing stays playing');keys.clear();
+}
+document.hidden=true;document.handlers.visibilitychange();check(state==='paused','switching away pauses');
+document.handlers.visibilitychange();check(state==='paused','repeated hidden events cannot resume');
+document.hidden=false;document.handlers.visibilitychange();check(state==='paused','returning waits for resume');
+$('start').onclick();check(state==='playing','resume after real tab switch');window.handlers.blur();check(state==='playing','visible blur after resume does not pause again');reset();
 const realGet=document.getElementById;document.getElementById=id=>id==='rade'?null:realGet(id);$('start').onclick();advanceIntro(5);check(state==='playing','start survives older HTML without RADE status');document.getElementById=realGet;
 pause();check(state==='paused','pause');pause();check(state==='playing','resume');
 `,sandbox);console.log('PASS: starting bug; +1/+2/+3 wall growth; block exclusion; alternating horns; phased immunity and recovery; solid hits; increasing level chain count and alternating spawns; damage never respawns a long chain; restart; bot Z and hop; glass bands; third-kill 30-second RADE activation, side fire and expiry; pause/resume');
