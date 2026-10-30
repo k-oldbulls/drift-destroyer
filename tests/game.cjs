@@ -34,9 +34,16 @@ check(lives===2&&invincible>0,'OBI respawns with protection');
 check(chains.length===1&&chains[0].segments.length===3&&chains[0].growth===4&&wallTouches===5,'damage preserves existing drift');
 check(chains[0].segments.every((s,i)=>s.x===beforeDamage[i].x&&s.y===beforeDamage[i].y),'damage never moves bugs to top');
 wave=3;nextWave();check(chains.length===3&&chains.every(c=>c.segments.length===1&&c.growth===0),'level three starts three single-segment chains');
-check(chains[0].segments[0].x===12&&chains[0].segments[0].y===60&&chains[0].dir===1,'first chain left');
-check(chains[1].segments[0].x===W-12&&chains[1].segments[0].y===84&&chains[1].dir===-1,'second chain opposite side one row down');
-check(chains[2].segments[0].x===12&&chains[2].segments[0].y===108&&chains[2].dir===1,'third chain alternates side and row');
+let leftSpawn=spawnDrift(0,-1),rightSpawn=spawnDrift(1,-1),outerSpawn=spawnDrift(2,-1);
+check(leftSpawn.segments[0].x===468&&leftSpawn.segments[0].y===-12&&leftSpawn.dir===-1,'first top position left of center');
+check(rightSpawn.segments[0].x===492&&rightSpawn.dir===1,'second top position opposite center');
+check(outerSpawn.segments[0].x===444,'third position expands outward');
+check(spawnDrift(0,1).segments[0].x===492,'random first side reverses pattern');
+let ceiling=Array.from({length:40},(_,i)=>spawnDrift(i,-1));check(new Set(ceiling.map(c=>c.segments[0].x)).size===40,'ceiling has forty unique slots');
+let overflow=spawnDrift(40,-1);check(!overflow.entering&&overflow.segments[0].x===12&&overflow.segments[0].y===84&&overflow.dir===1,'full ceiling adds wall entry');
+check(spawnDrift(41,-1).segments[0].x===948,'overflow alternates walls');
+let entryWalls=wallTouches;for(let i=0;i<3;i++)stepChain(leftSpawn);check(!leftSpawn.entering&&leftSpawn.segments[0].y===60&&leftSpawn.segments.length===1&&wallTouches===entryWalls,'top drop does not grow or count walls');
+stepChain(leftSpawn);check(leftSpawn.segments[0].x===444,'drop then moves outward');
 wave=25;nextWave();check(chains.length===25&&chains.every(c=>c.segments[0].y<DEFENSE_TOP-20),'later levels keep spawns above flight zone');
 reset();check(chains.length===1&&chains[0].segments.length===1&&chains[0].growth===0,'restart always one segment');
 reset();fireMissile();check(missiles.length===1&&missiles[0].x===player.x&&!missileReady,'centre launch');fireMissile();check(missiles.length===1,'no extra missile');
@@ -91,7 +98,7 @@ check(chains.reduce((n,c)=>n+c.segments.length+c.growth,0)===totalBefore,'RADE a
 let inherited={segments:[segment(300,300)],dir:1,clock:0,growth:0,wallCounter:firstDrift.wallCounter};inherited.segments[0].x=924;stepChain(inherited);check(inherited.segments.length+inherited.growth===5,'split uses original drift counter without duplicating pending growth');
 reset();
 restartGame();startIntro();check(state==='intro'&&introElapsed===0,'start enters intro');let introX=player.x;aim({clientX:0,clientY:0});check(player.x===introX,'intro blocks movement');fireMissile();check(missiles.length===0,'intro blocks weapons');advanceIntro(4.999);check(state==='intro'&&tick===0&&spawn===0,'no gameplay before five seconds');startIntro();check(introElapsed===4.999,'repeated start does not restart intro');advanceIntro(.0011);check(state==='playing','five seconds starts gameplay');restartGame();startIntro();restartGame();check(introElapsed===0,'reset restarts intro countdown');advanceIntro(4);check(state==='intro','reset grants full intro duration');advanceIntro(1);check(state==='playing','reset automatically restarts gameplay');reset();
-reset();blocks=[];links=[];let arrow=chains[0];stepChain(arrow);check(arrow.segments[0].angle===0,'right-pointing chevron');arrow.segments[0].x=948;arrow.dir=1;stepChain(arrow);check(arrow.segments[0].angle===Math.PI/2,'down-pointing chevron on descent');stepChain(arrow);check(Math.abs(arrow.segments[0].angle)===Math.PI,'left-pointing chevron');
+reset();blocks=[];links=[];let arrow=chains[0];arrow.entering=false;arrow.dir=1;stepChain(arrow);check(arrow.segments[0].angle===0,'right-pointing chevron');arrow.segments[0].x=948;arrow.dir=1;stepChain(arrow);check(arrow.segments[0].angle===Math.PI/2,'down-pointing chevron on descent');stepChain(arrow);check(Math.abs(arrow.segments[0].angle)===Math.PI,'left-pointing chevron');
 let fading=arrow.segments[0];fading.phased=true;fading.phaseTimer=10;update(.25);check(fading.visibility===0,'inactive dark debt fades fully toward black');fading.phased=false;update(.25);check(fading.visibility===1,'active dark debt returns light grey');reset();
 // Actual level clears announce the new level and add distinct, bounded defects.
 reset();blocks=[];links=[];chains=[];update(.001);

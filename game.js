@@ -12,13 +12,19 @@ function tone(f,d=.06,type='square',v=.025){if(muted)return;try{audio??=new (win
 function addScore(n){score+=n;if(score>best){best=score;try{localStorage.setItem('drift-destroyer-best',best)}catch{}}hud()}
 function burst(x,y,color,count=12){for(let i=0;i<count;i++)particles.push({x,y,vx:rand(-130,130),vy:rand(-130,130),life:rand(.2,.65),color})}
 function segment(x,y,angle=0){return {x,y,angle,visibility:1,phased:false,phaseTimer:rand(2,5)}}
+function spawnDrift(i,firstSide){
+ const side=i%2===0?firstSide:-firstSide;
+ if(i<COLS){
+  const x=W/2+side*(CELL/2+Math.floor(i/2)*CELL);
+  return {segments:[segment(x,-12,Math.PI/2)],dir:side,entering:true,clock:0,growth:0,wallCounter:{touches:0}};
+ }
+ const j=i-COLS,spawnRows=Math.floor((DEFENSE_TOP-24-84)/CELL)+1;
+ return {segments:[segment(side<0?12:W-12,84+(Math.floor(j/2)%spawnRows)*CELL,side<0?0:Math.PI)],dir:-side,clock:0,growth:0,wallCounter:{touches:0}};
+}
 function nextWave(){
  wallTouches=0;
- const spawnRows=Math.floor((DEFENSE_TOP-24-60)/CELL)+1;
- chains=Array.from({length:wave},(_,i)=>({
-  segments:[segment(i%2===0?12:W-12,60+(i%spawnRows)*CELL,i%2===0?0:Math.PI)],
-  dir:i%2===0?1:-1,clock:0,growth:0,wallCounter:{touches:0}
- }));
+ const firstSide=Math.random()<.5?-1:1;
+ chains=Array.from({length:wave},(_,i)=>spawnDrift(i,firstSide));
  spawn=0;hud();
 }
 function introduceDefects(){
@@ -51,6 +57,11 @@ function blocksShot(b){if(b.vx)return false;return links.some(l=>!l.vertical&&b.
 function chainStepTime(c){return Math.max(.035,Math.max(.055,.15-wave*.009)/(1+.04*(c.wallCounter?.touches??0)))}
 function stepChain(c){
  if(c.reaction||!c.segments.length)return;
+ if(c.entering){
+  const head=c.segments[0];head.y=Math.min(60,head.y+CELL);head.angle=Math.PI/2;
+  if(head.y===60)c.entering=false;
+  return;
+ }
  c.wallCounter??={touches:0};
  const previous=c.segments.map(s=>({x:s.x,y:s.y})),head=c.segments[0],nx=head.x+c.dir*CELL;
  const wall=nx<12||nx>W-12;
