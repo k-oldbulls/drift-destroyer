@@ -184,7 +184,9 @@ function moveBot(dt){
 }
 // Traditional Farmer in the Dell melody, synthesized locally as square waves.
 const INTRO_SECONDS=5;
-const INTRO_MELODY=[[60,1],[65,1],[65,1],[65,1],[65,2],[65,1],[67,1],[69,1],[69,1],[69,1],[69,1],[69,2],[69,1],[70,1],[69,1],[67,1],[65,2],[65,1],[64,1],[64,1],[65,4]];
+// Refrain only: Hi-ho, the derry-o, followed by its resolving phrase.
+// Preserve the lilting 6/8 rhythm instead of compressing the entire verse.
+const INTRO_MELODY=[[67,3],[67,2],[69,1],[67,1],[64,1],[60,3],[62,1],[64,2],[64,1],[62,2],[62,1],[60,3]];
 function stopIntroMusic(){for(const note of introNotes)try{note.stop()}catch{}introNotes=[]}
 function playIntroMusic(){
  stopIntroMusic();if(muted)return;
@@ -192,7 +194,7 @@ function playIntroMusic(){
   audio??=new (window.AudioContext||window.webkitAudioContext)();audio.resume?.();
   const units=INTRO_MELODY.reduce((n,note)=>n+note[1],0),beat=4.8/units;let at=audio.currentTime+.03;
   for(const [pitch,length] of INTRO_MELODY){const o=audio.createOscillator(),g=audio.createGain(),duration=length*beat;
-   o.type='square';o.frequency.value=440*2**((pitch-69)/12);g.gain.setValueAtTime(.0001,at);g.gain.linearRampToValueAtTime(.045,at+.008);g.gain.exponentialRampToValueAtTime(.0001,at+duration*.9);
+   o.type='square';o.frequency.value=440*2**((pitch-69)/12);g.gain.setValueAtTime(.0001,at);g.gain.linearRampToValueAtTime(.045,at+.008);g.gain.exponentialRampToValueAtTime(.0001,at+duration*.82);
    o.connect(g);g.connect(audio.destination);o.start(at);o.stop(at+duration);introNotes.push(o);at+=duration;
   }
  }catch{}
